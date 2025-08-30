@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import db from "../models/index.js";
 
 const Income = db.Income;
@@ -8,7 +9,7 @@ export const getIncomes = async (req, res) => {
         const where = { user_id: req.user.id };
 
         if (start && end) {
-            where.income_date = { [db.Sequelize.Op.between]: [start, end] };
+            where.income_date = { [Op.between]: [new Date(start), new Date(end)] };
         }
 
         const incomes = await Income.findAll({ where, order: [["income_date", "DESC"]] });
