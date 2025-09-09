@@ -1,6 +1,8 @@
 import db from '../models/index.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import createDefaultCategory from '../utils/createBaseCategory.js';
+import cookieParser from 'cookie-parser';
+import express from "express";
 
 // Utils
 const issueTokens = async (user) => {
@@ -43,7 +45,7 @@ export const registerUser = async (req, res) => {
 };
 
 // Login
-export const login = async (req, res) => {
+export const login = express().use(cookieParser(`${process.env.COOKIE_SECRET}`), async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await db.User.findOne({ where: { email } });
@@ -54,13 +56,13 @@ export const login = async (req, res) => {
 
         const tokens = await issueTokens(user);
         return res.status(200)
-            .cookie('access_token', `Bearer ${tokens.accessToken}`)
-            .cookie('refresh_token', `Bearer ${tokens.refreshToken}`)
-            .json({ user: { id: user.id, email: user.email }, ...tokens });
+            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true })
+            .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true })
+            .json({ user: { id: user.id, email: user.email } });
     } catch (e) {
         return res.status(500).json({ message: 'Server Error', error: e.message });
     }
-};
+});
 
 // Return authenticated user's profile
 export const getProfile = async (req, res) => {

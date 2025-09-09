@@ -3,7 +3,7 @@ import express from "express";
 import cookieParser from 'cookie-parser';
 
 const requireAuth = express().use(cookieParser(), (req, res, next) => {
-  const auth = req.cookies["access_token"] || '';
+  const auth = cookieParser.signedCookie(req.cookies["access_token"] || '', process.env.COOKIE_SECRET);
   const [scheme, token] = auth.split(' ');
 
   if (scheme !== 'Bearer' || !token) {
