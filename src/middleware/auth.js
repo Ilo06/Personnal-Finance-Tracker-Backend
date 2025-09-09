@@ -1,7 +1,9 @@
 import { verifyAccessToken } from '../utils/jwt.js';
+import express from "express";
+import cookieParser from 'cookie-parser';
 
-const requireAuth = (req, res, next) => {
-  const auth = req.headers.authorization || '';
+const requireAuth = express().use(cookieParser(), (req, res, next) => {
+  const auth = req.cookies["access_token"] || '';
   const [scheme, token] = auth.split(' ');
 
   if (scheme !== 'Bearer' || !token) {
@@ -15,6 +17,6 @@ const requireAuth = (req, res, next) => {
   } catch (e) {
     return res.status(401).json({ message: 'Token invalide ou expiré' });
   }
-};
+});
 
 export default requireAuth;
