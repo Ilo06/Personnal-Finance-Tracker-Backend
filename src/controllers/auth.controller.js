@@ -7,7 +7,7 @@ import express from "express";
 import { issueTokens } from '../utils/token.js'
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
+const signCookie = cookieParser(process.env.COOKIE_SECRET)
 
 // Register
 export const registerUser = async (req, res) => {
@@ -33,7 +33,7 @@ export const registerUser = async (req, res) => {
 };
 
 // Login
-export const login = express().use(cookieParser(`${process.env.COOKIE_SECRET}`), async (req, res) => {
+export const login = express().use(signCookie, async (req, res) => {
     try {
         const { email, password, rememberMe } = req.body;
         const user = await db.User.findOne({ where: { email } });
@@ -53,7 +53,7 @@ export const login = express().use(cookieParser(`${process.env.COOKIE_SECRET}`),
 });
 
 // Google Login
-export const googleLogin = async (req, res) => {
+export const googleLogin = express().use(signCookie, async (req, res) => {
     const { access_token } = req.body;
 
     if (!access_token) {
@@ -82,12 +82,13 @@ export const googleLogin = async (req, res) => {
         const tokens = await issueTokens(user, true);
         return res.status(200)
             .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true })
-            .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true, maxAge: rememberMe ? (1000 * 60 * 60 * 24 * 30) : null })
+            .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true, maxAge: (1000 * 60 * 60 * 24 * 30) })
             .json({ user: { id: user.id, email: user.email } });
     } catch (error) {
+        console.log(error.message)
         return res.status(401).json({ message: 'Invalid Google token' });
     }
-};
+});
 
 // Return authenticated user's profile
 export const getProfile = async (req, res) => {
