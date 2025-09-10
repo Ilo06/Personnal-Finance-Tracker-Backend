@@ -7,7 +7,7 @@ import express from "express";
 import { issueTokens } from '../utils/token.js'
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const signCookie = cookieParser(process.env.COOKIE_SECRET)
+const signCookie = cookieParser(process.env.COOKIE_SECRET) || null
 
 // Register
 export const registerUser = async (req, res) => {
@@ -44,7 +44,7 @@ export const login = express().use(signCookie, async (req, res) => {
 
         const tokens = await issueTokens(user, rememberMe);
         return res.status(200)
-            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true })
+            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: 1000 * 60 * 40 })
             .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true, maxAge: rememberMe ? (1000 * 60 * 60 * 24 * 30) : null })
             .json({ user: { id: user.id, email: user.email } });
     } catch (e) {
@@ -81,7 +81,7 @@ export const googleLogin = express().use(signCookie, async (req, res) => {
 
         const tokens = await issueTokens(user, true);
         return res.status(200)
-            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true })
+            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: 1000 * 60 * 40 })
             .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true, maxAge: (1000 * 60 * 60 * 24 * 30) })
             .json({ user: { id: user.id, email: user.email } });
     } catch (error) {
@@ -89,6 +89,29 @@ export const googleLogin = express().use(signCookie, async (req, res) => {
         return res.status(401).json({ message: 'Invalid Google token' });
     }
 });
+
+export const refreshLogin = express().use(signCookie, async (req, res) => {
+    const refresh_token = cookieParser.signedCookie(req.signedCookies["refresh_token"], process.env.COOKIE_SECRET)?.split(" ")[1] || null
+    if (!refresh_token) return res.status(401).json({ message: "No refresh token found" })
+
+    try {
+        const decoded_token = verifyRefreshToken(refresh_token)
+        if (new Date(decoded_token.exp * 1000) > new Date()) {
+
+            const user = await db.User.findOne({ where: { id: decoded_token.sub } })
+            const tokens = await issueTokens(user, true)
+
+            return res.status(200)
+                .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: 1000 * 60 * 40 })
+                .json({ user: { id: user.id, email: user.email } });
+        }
+
+        return res.status(401).json({ message: "Refresh token is expired" })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ message: "Failed to check refresh token" })
+    }
+})
 
 // Return authenticated user's profile
 export const getProfile = async (req, res) => {
