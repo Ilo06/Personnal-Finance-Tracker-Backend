@@ -8,6 +8,7 @@ import { issueTokens } from '../utils/token.js'
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const signCookie = cookieParser(process.env.COOKIE_SECRET) || null
+const accessCookieMaxAge = 1000 * 60 * (parseFloat(process.env.COOKIE_ACCESS_EXPIRES || 45))
 
 // Register
 export const registerUser = async (req, res) => {
@@ -44,8 +45,8 @@ export const login = express().use(signCookie, async (req, res) => {
 
         const tokens = await issueTokens(user, rememberMe);
         return res.status(200)
-            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: 1000 * 60 * 40 })
-            .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true, maxAge: rememberMe ? (1000 * 60 * 60 * 24 * 30) : null })
+            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: accessCookieMaxAge })
+            .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true, maxAge: 1000 * 60 * 60 * 24 * (rememberMe ? parseFloat(process.env.COOKIE_REFRESH_EXPIRES || 7) : 0) })
             .json({ user: { id: user.id, email: user.email } });
     } catch (e) {
         return res.status(500).json({ message: 'Server Error', error: e.message });
@@ -81,7 +82,7 @@ export const googleLogin = express().use(signCookie, async (req, res) => {
 
         const tokens = await issueTokens(user, true);
         return res.status(200)
-            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: 1000 * 60 * 40 })
+            .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: accessCookieMaxAge })
             .cookie('refresh_token', `Bearer ${tokens.refreshToken}`, { signed: true, maxAge: (1000 * 60 * 60 * 24 * 30) })
             .json({ user: { id: user.id, email: user.email } });
     } catch (error) {
@@ -102,7 +103,7 @@ export const refreshLogin = express().use(signCookie, async (req, res) => {
             const tokens = await issueTokens(user, true)
 
             return res.status(200)
-                .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: 1000 * 60 * 40 })
+                .cookie('access_token', `Bearer ${tokens.accessToken}`, { signed: true, maxAge: accessCookieMaxAge })
                 .json({ user: { id: user.id, email: user.email } });
         }
 
